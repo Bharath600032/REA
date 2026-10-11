@@ -11,6 +11,48 @@
     <!-- website:sharing:start -->
     <!-- prettier-ignore -->
     <link rel="canonical" href="https://rea.tools/demos/" />
+    <!-- website:languages:start -->
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="en" href="https://rea.tools/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="zh-CN" href="https://rea.tools/zh-CN/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="zh-TW" href="https://rea.tools/zh-TW/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="ja" href="https://rea.tools/ja/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="ko" href="https://rea.tools/ko/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="tr" href="https://rea.tools/tr/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="ru" href="https://rea.tools/ru/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="vi" href="https://rea.tools/vi/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="th" href="https://rea.tools/th/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="de" href="https://rea.tools/de/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="es" href="https://rea.tools/es/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="fr" href="https://rea.tools/fr/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="uk" href="https://rea.tools/uk/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="pl" href="https://rea.tools/pl/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="pt-BR" href="https://rea.tools/pt-BR/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="ar" href="https://rea.tools/ar/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="fa" href="https://rea.tools/fa/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="id" href="https://rea.tools/id/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="it" href="https://rea.tools/it/demos/" />
+    <!-- prettier-ignore -->
+    <link rel="alternate" hreflang="x-default" href="https://rea.tools/demos/" />
+    <!-- website:languages:end -->
     <!-- prettier-ignore -->
     <meta property="og:type" content="website" />
     <!-- prettier-ignore -->
@@ -61,7 +103,7 @@
       <div class="container header-inner">
         <a class="brand" href="../" aria-label="REA home"
           ><span class="brand-name">REA</span
-          ><span class="brand-caption">Reverse Engineer Anything</span></a
+          ><span class="brand-caption" data-i18n-skip>Reverse Engineer Anything</span></a
         >
         <nav class="navigation" aria-label="Main navigation">
           <a href="../showcase/">Showcases</a>
@@ -71,6 +113,7 @@
           <a href="../faq/">FAQ</a>
         </nav>
         <div class="header-social">
+          <details class="language-picker" data-i18n-skip><summary><span aria-hidden="true">文 / A</span> <span>English</span></summary><nav aria-label="English"><a href="../demos/" lang="en" dir="ltr" data-language="en" aria-current="true">English</a><a href="../zh-CN/demos/" lang="zh-CN" dir="ltr" data-language="zh-CN">简体中文</a><a href="../zh-TW/demos/" lang="zh-TW" dir="ltr" data-language="zh-TW">繁體中文</a><a href="../ja/demos/" lang="ja" dir="ltr" data-language="ja">日本語</a><a href="../ko/demos/" lang="ko" dir="ltr" data-language="ko">한국어</a><a href="../tr/demos/" lang="tr" dir="ltr" data-language="tr">Türkçe</a><a href="../ru/demos/" lang="ru" dir="ltr" data-language="ru">Русский</a><a href="../vi/demos/" lang="vi" dir="ltr" data-language="vi">Tiếng Việt</a><a href="../th/demos/" lang="th" dir="ltr" data-language="th">ไทย</a><a href="../de/demos/" lang="de" dir="ltr" data-language="de">Deutsch</a><a href="../es/demos/" lang="es" dir="ltr" data-language="es">Español</a><a href="../fr/demos/" lang="fr" dir="ltr" data-language="fr">Français</a><a href="../uk/demos/" lang="uk" dir="ltr" data-language="uk">Українська</a><a href="../pl/demos/" lang="pl" dir="ltr" data-language="pl">Polski</a><a href="../pt-BR/demos/" lang="pt-BR" dir="ltr" data-language="pt-BR">Português (Brasil)</a><a href="../ar/demos/" lang="ar" dir="rtl" data-language="ar">العربية</a><a href="../fa/demos/" lang="fa" dir="rtl" data-language="fa">فارسی</a><a href="../id/demos/" lang="id" dir="ltr" data-language="id">Bahasa Indonesia</a><a href="../it/demos/" lang="it" dir="ltr" data-language="it">Italiano</a></nav></details>
           <a
             class="nav-github"
             href="https://github.com/morluto/rea"
@@ -193,11 +236,13 @@
             is a static analysis target; it does not require Electron to launch.
           </p>
           <p>
-            From a repository checkout, use the released REA version recorded
-            for this run. Save its complete application Evidence before asking
-            the follow-up CLI questions:
+            Run the pinned npm package from a working directory outside the
+            repository checkout. Replace <code>/absolute/path/to/rea</code> with
+            the checkout's absolute path; output JSON files are written to the
+            current directory. This avoids <code>npx</code> resolving a checkout
+            with the same package name and version:
           </p>
-          <pre><code>npx -y rea-agents@6.4.0 analyze-javascript-application ./website/public/examples/notes-electron --json &gt; application-evidence.json
+          <pre><code>npx -y rea-agents@6.4.0 analyze-javascript-application /absolute/path/to/rea/website/public/examples/notes-electron --json &gt; application-evidence.json
 node --input-type=module -e '
 import { readFileSync, writeFileSync } from "node:fs";
 const application = JSON.parse(readFileSync("application-evidence.json", "utf8"));
@@ -215,6 +260,12 @@ writeFileSync("semantic-trace.json", JSON.stringify({
 }));'
 npx -y rea-agents@6.4.0 trace-application-feature ./feature-trace.json --json
 npx -y rea-agents@6.4.0 trace-javascript-semantics ./semantic-trace.json --json</code></pre>
+          <p>
+            To run the checkout's source instead, work from its root after
+            <code>npm ci</code> and <code>npm run build</code>, and use
+            <code>node scripts/rea.mjs</code> in place of each pinned
+            <code>npx</code> command.
+          </p>
           <p>
             The trace connects the renderer, preload bridge, literal
             <code>notes:export</code> channel and main-process handler. On the
@@ -279,13 +330,19 @@ npm run verify:fixtures</code></pre>
           </p>
           <pre><code>node scripts/rea.mjs search build/conformance/c "REA_C_ENTRY" --provider ghidra --json
 node scripts/rea.mjs function build/conformance/c rea_entry --provider ghidra --json
+node scripts/rea.mjs function build/conformance/c rea_branch --provider ghidra --json
 node scripts/rea.mjs xrefs build/conformance/c rea_entry --provider ghidra --json</code></pre>
           <p>
-            In MCP, open that binary, search for the marker and procedures,
-            inspect <code>rea_entry</code>, follow its references, then call
-            <code>close_binary</code>. The MCP lifecycle must report successful
-            cleanup. The CLI commands use separate processes and release their
-            own analysis resources when each command exits.
+            The <code>rea_branch</code> query shows the next call to
+            <code>rea_leaf</code>. CLI <code>xrefs</code> accepts a symbol name
+            and resolves it to an address; the MCP operation takes an address
+            (Ghidra requires it explicitly). In MCP, open the binary, search for
+            the marker and procedures, inspect <code>rea_entry</code> and
+            <code>rea_branch</code>, pass the resolved address to
+            <code>xrefs</code>, then call <code>close_binary</code>. The MCP
+            lifecycle must report successful cleanup. The CLI commands use
+            separate processes and release their own analysis resources when
+            each command exits.
           </p>
           <p>
             This Windows host has no configured Ghidra, IDA or Hopper provider,
