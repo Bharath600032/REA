@@ -376,6 +376,17 @@ node scripts/rea.mjs xrefs build/conformance/c rea_entry --provider ghidra --jso
             Chrome paths. On Windows, set <code>REA_BROWSER_EXECUTABLE</code>
             to the installed Chrome executable before running the command:
           </p>
+          <p>
+            A Windows source checkout also needs the package-matched native
+            addon used by the verifier's JavaScript worker. Normal runtime
+            builds do not produce that ignored artifact. Follow the
+            <a
+              href="https://github.com/morluto/rea/blob/main/docs/testing.md#real-toolchain-verification-lanes"
+              >Windows native verification setup</a
+            >
+            before running the browser verifier; released packages include the
+            matching artifact.
+          </p>
           <pre><code>$env:REA_BROWSER_EXECUTABLE = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
 npm run verify:browser</code></pre>
           <p>
