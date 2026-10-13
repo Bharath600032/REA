@@ -242,7 +242,11 @@
             current directory. This avoids <code>npx</code> resolving a checkout
             with the same package name and version:
           </p>
-          <p>Run this example in a Bash-compatible shell; PowerShell 5.1 writes redirected output as UTF-16LE, which is incompatible with the following UTF-8 read.</p>
+          <p>
+            Run this example in a Bash-compatible shell; PowerShell 5.1 writes
+            redirected output as UTF-16LE, which is incompatible with the
+            following UTF-8 read.
+          </p>
           <pre><code class="language-bash">npx -y rea-agents@6.4.0 analyze-javascript-application /absolute/path/to/rea/website/public/examples/notes-electron --json &gt; application-evidence.json
 node --input-type=module -e '
 import { readFileSync, writeFileSync } from "node:fs";
