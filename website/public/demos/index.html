@@ -242,7 +242,8 @@
             current directory. This avoids <code>npx</code> resolving a checkout
             with the same package name and version:
           </p>
-          <pre><code>npx -y rea-agents@6.4.0 analyze-javascript-application /absolute/path/to/rea/website/public/examples/notes-electron --json &gt; application-evidence.json
+          <p>Run this example in a Bash-compatible shell; PowerShell 5.1 writes redirected output as UTF-16LE, which is incompatible with the following UTF-8 read.</p>
+          <pre><code class="language-bash">npx -y rea-agents@6.4.0 analyze-javascript-application /absolute/path/to/rea/website/public/examples/notes-electron --json &gt; application-evidence.json
 node --input-type=module -e '
 import { readFileSync, writeFileSync } from "node:fs";
 const application = JSON.parse(readFileSync("application-evidence.json", "utf8"));
@@ -317,12 +318,15 @@ npx -y rea-agents@6.4.0 trace-javascript-semantics ./semantic-trace.json --json<
             <code>rea_branch</code>, which calls <code>rea_leaf</code>.
           </p>
           <p>
-            Fixture generation is supported on macOS and Linux with a C
-            toolchain. It writes ignored files under
+            From the repository root, install dependencies and build the REA
+            runtime first. Fixture generation is supported on macOS and Linux
+            with a C toolchain. It writes ignored files under
             <code>build/conformance/</code> and verifies their source and binary
             hashes:
           </p>
-          <pre><code>npm run build:fixtures
+          <pre><code>npm ci
+npm run build:cached
+npm run build:fixtures
 npm run verify:fixtures</code></pre>
           <p>
             With Ghidra configured, the equivalent CLI investigation uses the
