@@ -293,7 +293,7 @@ export const registerReverseEngineeringCommands = (
         .string()
         .min(1)
         .describe("One unrestricted Rizin debugger command.")
-        .refine((value) => !/[\r\n]/u.test(value)),
+        .refine((value) => !/[\r\n\u0000]/u.test(value)),
     }),
     options: z.object({
       inferiorTty: z
