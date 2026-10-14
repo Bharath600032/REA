@@ -15,7 +15,7 @@ export const cutterCommandInputSchema = z.strictObject({
     .string()
     .min(1)
     .refine(
-      (value) => !/[\r\n]/u.test(value),
+      (value) => !/[\r\n\u0000]/u.test(value),
       "A single Rizin command line is required",
     ),
   json: z.boolean().default(false),

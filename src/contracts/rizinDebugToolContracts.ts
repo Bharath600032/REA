@@ -52,7 +52,7 @@ export const RIZIN_DEBUG_TOOL_CONTRACTS = [
         .string()
         .min(1)
         .refine(
-          (value) => !/[\r\n]/u.test(value),
+          (value) => !/[\r\n\u0000]/u.test(value),
           "A single command line is required",
         ),
     }),

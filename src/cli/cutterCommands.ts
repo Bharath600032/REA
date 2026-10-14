@@ -42,7 +42,7 @@ export const registerCutterCommands = (
         .string()
         .min(1)
         .describe("One unrestricted Rizin command to run in Cutter.")
-        .refine((value) => !/[\r\n]/u.test(value)),
+        .refine((value) => !/[\r\n\u0000]/u.test(value)),
     }),
     options: z.object({
       json: z
