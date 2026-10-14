@@ -191,6 +191,9 @@ const searchClasses = async (
   });
 };
 
+const MISSING_METHOD_BODY =
+  "// method exists but has no decompiled body (native/abstract)";
+
 const matchingMethods = (
   summary: ClassSummary,
   request: Extract<
@@ -260,22 +263,53 @@ const inspectMethod = async (
       request.operation,
       `JADX ${JADX_RELEASE.version} smali fallback joins all same-name overloads for ${summary.full_name}.${request.input.method_name}; it cannot establish source for only overload ${index}.`,
     );
+  const holder =
+    body.body === MISSING_METHOD_BODY
+      ? await inlinedHolder(tools, summary, selected.name, index)
+      : undefined;
+  const missing = body.body.length === 0 || body.body === MISSING_METHOD_BODY;
+  const text =
+    holder !== undefined
+      ? `// JADX inlined this method into ${holder}`
+      : body.body === MISSING_METHOD_BODY
+        ? "// method exists but has no decompiled body"
+        : body.body;
   return androidResultSchemas.inspect_android_method.parse({
     engine,
     class_name: summary.full_name,
     method: selected,
     overload_count: candidates.length,
     representation: body.mode,
-    body_status:
-      body.body.length === 0 ||
-      body.body ===
-        "// method exists but has no decompiled body (native/abstract)"
-        ? "not_available"
-        : "available",
+    body_status: missing ? "not_available" : "available",
     fell_back: body.fell_back,
-    markers: body.markers,
-    source: normalizeJadxText(body.body),
+    markers:
+      holder === undefined ? body.markers : [...body.markers, "inlined_method"],
+    source: normalizeJadxText(text),
   });
+};
+
+/** The sibling whose decompiled text says JADX merged this method into it. */
+const inlinedHolder = async (
+  tools: JadxToolPort,
+  summary: ClassSummary,
+  methodName: string,
+  overloadIndex: number,
+): Promise<string | undefined> => {
+  const needle = `renamed from: ${methodName},`;
+  for (const method of methodsOf(summary)) {
+    if (method.name === methodName && method.overload_index === overloadIndex)
+      continue;
+    const payload = jadxMethodSchema.parse(
+      await tools.json("get_method_body", {
+        class_name: summary.full_name,
+        method_name: method.name,
+        overload_index: method.overload_index,
+        smali_fallback: false,
+      }),
+    );
+    if (payload.body.includes(needle)) return method.name;
+  }
+  return undefined;
 };
 
 /** Normalize only the selected analyst outcome and reject ambiguous engine selectors. */

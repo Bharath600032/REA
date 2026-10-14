@@ -362,3 +362,79 @@ it.each([
     });
   },
 );
+
+it("names the sibling that holds a method JADX inlined", async () => {
+  const inlinedSummary = {
+    ...summary,
+    methods: [
+      {
+        name: "highlightText",
+        signature: "highlightText(): void",
+        dex_descriptor: "()V",
+        is_constructor: false,
+        def_pos: 0,
+      },
+      {
+        name: "m0lambda$checkHighlight",
+        signature: "m0lambda$checkHighlight(): void",
+        dex_descriptor: "()V",
+        is_constructor: false,
+        def_pos: 0,
+      },
+    ],
+  };
+  const methodBody = (
+    methodName: string,
+    text: string,
+  ): Record<string, unknown> => ({
+    class_name: "fixture.Target",
+    method_name: methodName,
+    full_name: `fixture.Target.${methodName}`,
+    overload_index: 0,
+    overload_count: 1,
+    mode: "java",
+    fell_back: false,
+    markers: [],
+    body: text,
+  });
+  const result = await analyzeJadxRequest(
+    {
+      json: (name, input) => {
+        if (name === "get_class_summary")
+          return Promise.resolve(inlinedSummary);
+        const methodName = input.method_name;
+        if (methodName === "highlightText")
+          return Promise.resolve(
+            methodBody(
+              "highlightText",
+              "// method exists but has no decompiled body (native/abstract)",
+            ),
+          );
+        return Promise.resolve(
+          methodBody(
+            "m0lambda$checkHighlight",
+            "/* JADX INFO: renamed from: highlightText, reason: merged with bridge method [inline-methods] */\npublic void m0lambda$checkHighlight() {}",
+          ),
+        );
+      },
+      text: () => Promise.reject(new Error("unexpected text call")),
+    },
+    {
+      operation: "inspect_android_method",
+      input: {
+        path: "/fixture.apk",
+        class_name: "fixture.Target",
+        method_name: "highlightText",
+      },
+    },
+    {} as never,
+    engine,
+  );
+  expect(result).toMatchObject({
+    body_status: "not_available",
+    markers: ["inlined_method"],
+    source: {
+      text: "// JADX inlined this method into m0lambda$checkHighlight",
+    },
+  });
+});
