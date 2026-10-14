@@ -63,6 +63,8 @@ import {
   parsePmPathOutput,
 } from "./AdbDeviceOutput.js";
 import { adbHostFileName } from "./AdbHostFileName.js";
+import { adbArguments } from "./AdbArguments.js";
+import { AdbUiRunner } from "./AdbUiRunner.js";
 import {
   ADB_DIRECTORY_BATCH_SCRIPT,
   parseAdbDirectoryListing,
@@ -129,23 +131,6 @@ const hashAdbFile = async (
       throw new AnalysisCancelledError(operation, { cause });
     throw cause;
   }
-};
-
-/** adb joins shell operands into a remote POSIX command; quote at that boundary. */
-const quoteShellOperand = (value: string): string =>
-  /^[A-Za-z0-9_./:=@+,-]+$/u.test(value)
-    ? value
-    : "'" + value.replaceAll("'", "'\\''") + "'";
-
-const adbArguments = (
-  serial: string | undefined,
-  arguments_: readonly string[],
-): readonly string[] => {
-  const operands =
-    arguments_[0] === "shell"
-      ? ["shell", ...arguments_.slice(1).map(quoteShellOperand)]
-      : [...arguments_];
-  return serial === undefined ? operands : ["-s", serial, ...operands];
 };
 
 interface AdbRunLimits {
@@ -527,12 +512,13 @@ const reservePackageDestinations = async (
  *
  * Every operation composes fixed adb argument vectors: caller values occupy
  * positional arguments, escaped when adb forwards them to the device shell. The provider never
- * starts an emulator, installs platform tools, or drives the device UI; the
- * only device mutation is the caller-requested file push, which requires an
- * explicit overwrite choice and verifies its transfer digest.
+ * starts an emulator or installs platform tools. Explicit UI operations use
+ * the caller-started UI Automator runner; package/file mutations remain
+ * separately selected operations.
  */
 export class AdbProvider {
   private readonly environment: Readonly<Record<string, string | undefined>>;
+  readonly #ui: AdbUiRunner;
   readonly #pendingOutputDirectoryCleanup =
     new Set<PendingOutputDirectoryCleanup>();
   readonly #activeOperations = new Set<Promise<void>>();
@@ -542,6 +528,7 @@ export class AdbProvider {
 
   constructor(options: AdbProviderOptions = {}) {
     this.environment = options.environment ?? process.env;
+    this.#ui = new AdbUiRunner(this.environment);
   }
 
   private selection(): AdbBinarySelection {
@@ -577,7 +564,30 @@ export class AdbProvider {
     if (this.#closePromise !== undefined) return this.#closePromise;
     const closing = (async () => {
       await Promise.all(this.#activeOperations);
-      await this.#retryOutputDirectoryCleanup();
+      const outcomes = await Promise.allSettled([
+        this.#ui.close(),
+        this.#retryOutputDirectoryCleanup(),
+      ]);
+      const failures = outcomes.flatMap((outcome) =>
+        outcome.status === "rejected" ? [outcome.reason as unknown] : [],
+      );
+      if (failures.length === 1) throw failures[0];
+      if (failures.length > 1)
+        throw new ProviderCleanupError(
+          "adb",
+          [
+            ...this.#ui.pendingResources,
+            ...[...this.#pendingOutputDirectoryCleanup].map(({ path }) => path),
+          ],
+          {
+            failures: failures.map((failure) =>
+              failure instanceof Error ? failure.message : String(failure),
+            ),
+          },
+          {
+            cause: new AggregateError(failures, "Multiple ADB cleanups failed"),
+          },
+        );
     })().finally(() => {
       if (this.#closePromise === closing) this.#closePromise = undefined;
     });
@@ -733,6 +743,17 @@ export class AdbProvider {
         signal,
       );
     switch (operation) {
+      case "inspect_adb_ui":
+      case "find_adb_ui_elements":
+      case "wait_for_adb_ui":
+      case "perform_adb_ui_action":
+        return this.#ui.execute(
+          request,
+          selection.binary,
+          client,
+          provider,
+          signal,
+        );
       case "inspect_adb_client":
         return ok(
           createAnalysisExecution(

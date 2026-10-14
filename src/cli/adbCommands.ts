@@ -11,6 +11,7 @@ import type { AdbOperation } from "../domain/adb/adbDeviceAnalysis.js";
 import type { Logger } from "pino";
 import type { CliInstance } from "./types.js";
 import { withCommandCancellation } from "./commandCancellation.js";
+import { parseCliJsonInput } from "../cliJsonInput.js";
 
 /** Expose the same explicit ADB requests through one-shot CLI commands. */
 export const registerAdbCommands = (
@@ -41,6 +42,44 @@ export const registerAdbCommands = (
     .string()
     .min(1)
     .describe("Device serial exactly as `adb devices` reports it");
+
+  for (const [name, operation, description] of [
+    [
+      CLI_COMMANDS.inspectAdbUi,
+      "inspect_adb_ui",
+      "Inspect one package's UI Automator hierarchy",
+    ],
+    [
+      CLI_COMMANDS.findAdbUiElements,
+      "find_adb_ui_elements",
+      "Find text, buttons and other Android accessibility controls",
+    ],
+    [
+      CLI_COMMANDS.waitForAdbUi,
+      "wait_for_adb_ui",
+      "Wait for an Android UI condition within a deadline",
+    ],
+    [
+      CLI_COMMANDS.performAdbUiAction,
+      "perform_adb_ui_action",
+      "Perform one explicit action on a selected Android UI element",
+    ],
+  ] as const) {
+    cli.command(name, {
+      description,
+      args: z.object({
+        inputJson: z
+          .string()
+          .describe(
+            "MCP input object as inline JSON or a local JSON file path",
+          ),
+      }),
+      run: async ({ args }) => {
+        const input = await parseCliJsonInput(args.inputJson, operation);
+        return input.ok ? execute(name, operation, input.value) : input.error;
+      },
+    });
+  }
 
   cli.command(CLI_COMMANDS.inspectAdbClient, {
     description:
