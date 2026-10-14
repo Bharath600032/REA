@@ -21,6 +21,7 @@ import {
 } from "@modelcontextprotocol/server";
 
 import { analysisErrorProjectionSchema } from "../contracts/errorSchemas.js";
+import { toolFamilyId } from "../contracts/toolFamilies.js";
 import {
   presentAdvertisedInputSchema,
   type CompactInputSchemaPresentation,
@@ -119,6 +120,14 @@ export class EvidenceMcpServer extends McpServer {
     readonly delivery: ToolResultDelivery,
     compactPresentation: CompactInputSchemaPresentation | undefined = undefined,
     private readonly omitOutputSchemas = false,
+    /**
+     * Tool families this registration advertises. Tools outside the scope
+     * stay registered but disabled: `tools/list` omits them and calls fail
+     * with the SDK's disabled-tool error instead of silently disappearing.
+     */
+    private readonly advertisedToolFamilies:
+      | ReadonlySet<string>
+      | undefined = undefined,
   ) {
     super(info, options);
     this.compactPresentation =
@@ -173,11 +182,25 @@ export class EvidenceMcpServer extends McpServer {
         : undefined;
     const registeredConfig =
       inputSchema === undefined ? config : { ...config, inputSchema };
-    return super.registerTool(
+    const registered = super.registerTool(
       name,
       registeredConfig as never,
       callback as never,
     );
+    if (!this.advertisesTool(name)) registered.disable();
+    return registered;
+  }
+
+  /**
+   * Whether a tool is advertised under this registration's family scope.
+   * Out-of-scope tools stay registered but disabled: `tools/list` omits
+   * them and calls fail with the SDK's disabled-tool error, so status
+   * reports cannot direct agents to calls that always fail.
+   */
+  advertisesTool(name: string): boolean {
+    if (this.advertisedToolFamilies === undefined) return true;
+    const family = toolFamilyId(name);
+    return family !== undefined && this.advertisedToolFamilies.has(family);
   }
 
   /** Preserve the SDK transport lifecycle while retaining oversized errors. */

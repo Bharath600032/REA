@@ -109,7 +109,7 @@ export const registerSessionStatusTool = (
             : { jebAnalysisAvailability: jebAvailability }),
         },
         clientFeatures,
-      );
+      ).filter(({ name }) => server.advertisesTool(name));
       const serverIdentity = createServerIdentity({
         startedAt,
         commandPath: CURRENT_ENTRYPOINT_PATH,
