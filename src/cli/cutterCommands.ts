@@ -8,6 +8,7 @@ import { logCliCommand } from "../cliLogging.js";
 import { projectAnalysisError } from "../domain/analysisErrorProjection.js";
 import { withCommandCancellation } from "./commandCancellation.js";
 import type { CliInstance } from "./types.js";
+import { singleCommandLineSchema } from "../contracts/singleCommandLineSchema.js";
 
 /** Register commands that control an already-running Cutter instance. */
 export const registerCutterCommands = (
@@ -38,11 +39,9 @@ export const registerCutterCommands = (
         .int()
         .nonnegative()
         .describe("Session generation returned by list-cutter-sessions."),
-      command: z
-        .string()
-        .min(1)
-        .describe("One unrestricted Rizin command to run in Cutter.")
-        .refine((value) => !/[\r\n]/u.test(value)),
+      command: singleCommandLineSchema.describe(
+        "One unrestricted Rizin command to run in Cutter.",
+      ),
     }),
     options: z.object({
       json: z
