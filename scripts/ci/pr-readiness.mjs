@@ -125,9 +125,15 @@ export async function runReadinessCheck({ github, context, core }) {
   );
   let verdict = evaluateReadiness(pull, template);
   if (verdict.state === "success") {
+    // A commit that exists only in a fork is indexed under the head
+    // repository, so the association lookup must target that repository.
+    const headRepository =
+      pull.head.repo === null || pull.head.repo === undefined
+        ? repository
+        : { owner: pull.head.repo.owner.login, repo: pull.head.repo.name };
     const associated = await github.paginate(
       github.rest.repos.listPullRequestsAssociatedWithCommit,
-      { ...repository, commit_sha: pull.head.sha, per_page: 100 },
+      { ...headRepository, commit_sha: pull.head.sha, per_page: 100 },
     );
     if (
       !associated.some(

@@ -246,6 +246,18 @@ describe("GitHub status boundary", () => {
     expect(input.core.setFailed).not.toHaveBeenCalled();
   });
 
+  it("looks up the head association in the fork that owns the commit", async () => {
+    const sha = "a".repeat(40);
+    const input = fixture({
+      head: { sha, repo: { name: "rea", owner: { login: "contributor" } } },
+    });
+    expect((await runReadinessCheck(input))?.state).toBe("success");
+    expect(input.paginate).toHaveBeenCalledWith(
+      input.github.rest.repos.listPullRequestsAssociatedWithCommit,
+      { owner: "contributor", repo: "rea", commit_sha: sha, per_page: 100 },
+    );
+  });
+
   it.each([{ state: "closed" as const }, { base: { ref: "other-branch" } }])(
     "ignores closed PRs and unprotected target branches (%#)",
     async (changes) => {
