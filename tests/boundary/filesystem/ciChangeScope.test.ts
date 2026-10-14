@@ -449,7 +449,11 @@ it("selects only a trusted successful ancestor from recent CI push runs", async 
   const output = join(directory, "baseline-output");
   const result = await execFileAsync(
     process.execPath,
-    [new URL("../../../scripts/ci/baseline.mjs", import.meta.url).pathname],
+    [
+      fileURLToPath(
+        new URL("../../../scripts/ci/baseline.mjs", import.meta.url),
+      ),
+    ],
     {
       cwd: directory,
       env: {
@@ -477,7 +481,11 @@ it("returns an empty baseline when GitHub lookup fails", async () => {
   await chmod(gh, 0o755);
   const result = await execFileAsync(
     process.execPath,
-    [new URL("../../../scripts/ci/baseline.mjs", import.meta.url).pathname],
+    [
+      fileURLToPath(
+        new URL("../../../scripts/ci/baseline.mjs", import.meta.url),
+      ),
+    ],
     {
       cwd: directory,
       env: {
@@ -725,6 +733,36 @@ it.each([
   const { directory, base } = await fixture();
   const head = await change(directory, [path]);
   expect(await classify(directory, base, head)).toMatchObject(expected);
+});
+
+it.each([
+  "scripts/verify-screenshot-regions.mjs",
+  "scripts/fixtures/visual-coding-page.html",
+  "package.json",
+])("keeps screenshot verifier input %s on the browser lane", async (path) => {
+  const { directory } = await fixture();
+  const base = await change(
+    directory,
+    ["package.json"],
+    JSON.stringify({ scripts: {} }),
+  );
+  const head = await change(
+    directory,
+    [path],
+    path === "package.json"
+      ? JSON.stringify({
+          scripts: {
+            "verify:browser:screenshot-regions":
+              "npm run build:cached && node scripts/verify-screenshot-regions.mjs",
+          },
+        })
+      : "Changed screenshot verifier input\n",
+  );
+  const plan = await classify(directory, base, head);
+  const { CI_FLAGS } = await loadScopes();
+  for (const flag of CI_FLAGS)
+    expect(plan[flag], flag).toBe(flag === "code" || flag === "browser");
+  expect(plan.reasons).toEqual([]);
 });
 
 it("scopes package script edits while retaining broad dependency checks", async () => {
