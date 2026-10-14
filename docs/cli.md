@@ -323,7 +323,16 @@ operation status.
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `0`       | The operation completed. Its result may include partial evidence, warnings or unresolved questions.                                                  |
 | `1`       | The operation could not complete. Structured output identifies invalid input, permissions, cancellation, timeouts or another failure when available. |
-| `128 + N` | Signal `N` ended the process, where the shell or runtime preserves the conventional signal-derived status.                                           |
+| `128 + N` | Signal `N` ended the process, or a command handled it and returned the conventional signal-derived status after its operation settled.               |
+
+Handled cancellation is command-specific. When a handled signal produces a
+structured `code: "cancelled"` result, `analyze-javascript-application` and the
+JavaScript ASAR/directory lane of `analyze` exit `130` for SIGINT or `143` for
+SIGTERM; `inspect-artifact` exits `1` for either signal.
+
+A `130` or `143` status can accompany a complete structured result, but does
+not by itself establish that its code is `cancelled` or that cleanup details
+are present. Read the reported `code` and any returned cleanup details.
 
 `setup --dry-run` returns `planned` and exits `0`; a cancelled setup also exits
 `0`. Setup returns `1` for `needs_confirmation` or `needs_human`.
