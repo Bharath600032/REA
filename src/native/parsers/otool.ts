@@ -437,7 +437,17 @@ const parseFields = (block: string): ParsedFields => {
   return { values: fields, rows };
 };
 
+/**
+ * otool prints load-command strings as `<key> %s (offset %u)`: exactly one
+ * separator space on each side of the recorded string, whose own leading and
+ * trailing whitespace belongs to the Mach-O value.
+ */
+const OFFSET_STRING_FIELD = /^(name|path) (.* \(offset \d+\))$/u;
+
 const parseField = (rawLine: string): readonly [string, string] | undefined => {
+  const offsetString = OFFSET_STRING_FIELD.exec(rawLine.trimStart());
+  if (offsetString?.[1] !== undefined && offsetString[2] !== undefined)
+    return [offsetString[1], offsetString[2]];
   const line = rawLine.trim();
   // Match time stamp as a whole without swallowing `name stamp plugin.dylib`.
   const match = /^((?:time stamp)|\S+(?:\s+version)?)(?:\s+(.+))?$/u.exec(line);
@@ -582,7 +592,7 @@ const hexField = (
 };
 
 const stripOffsetSuffix = (value: string | null): string =>
-  value?.replace(/\s+\(offset\s+\d+\)$/u, "") ?? "unknown";
+  value?.replace(/ \(offset \d+\)$/u, "") ?? "unknown";
 
 const sectionAlignment = (raw: string | null): number | null => {
   if (raw === null) return null;
