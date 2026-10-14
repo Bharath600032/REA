@@ -106,6 +106,9 @@ export const registerCaptureCommands = (
                   ...options,
                   ...(all_matches ? { match_limit: null } : {}),
                   path: resolve(args.path),
+                  ...(options.tls_key_log_path === undefined
+                    ? {}
+                    : { tls_key_log_path: resolve(options.tls_key_log_path) }),
                 },
                 { signal },
               ),
