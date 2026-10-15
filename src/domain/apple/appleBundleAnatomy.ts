@@ -235,9 +235,10 @@ const enclosingBundle = (
 };
 
 const bundleLayout = (bundle: string, tree: Tree): Bundle["layout"] => {
-  const names = tree.children.get(directoryOf(bundle));
-  if (anatomyChild(names, "Contents") !== null) return "macos-deep";
-  if (anatomyChild(names, "Versions") !== null) return "versioned-framework";
+  const directory = directoryOf(bundle);
+  if (namedDirectory(tree, directory, "Contents") !== null) return "macos-deep";
+  if (namedDirectory(tree, directory, "Versions") !== null)
+    return "versioned-framework";
   return "shallow";
 };
 
@@ -281,11 +282,11 @@ const contentDirectories = (
 ): string[] => {
   const directory = directoryOf(bundle);
   if (layout === "macos-deep") {
-    const contents = namedChild(tree, directory, "Contents");
+    const contents = namedDirectory(tree, directory, "Contents");
     return contents === null ? [] : [contents];
   }
   if (layout === "shallow") return [directory];
-  const versions = namedChild(tree, directory, "Versions");
+  const versions = namedDirectory(tree, directory, "Versions");
   if (versions === null) return [];
   // Only real version directories count: Current is a symlink, and files
   // such as .DS_Store are not versions.
@@ -306,6 +307,21 @@ const namedChild = (
   return name === null ? null : joinPath(directory, name);
 };
 
+/** Select directory identity before applying the anatomy name preference. */
+const namedDirectory = (
+  tree: Tree,
+  directory: string,
+  expected: string,
+): string | null => {
+  const names = new Set(
+    [...(tree.children.get(directory) ?? [])].filter((name) =>
+      tree.directories.has(joinPath(directory, name)),
+    ),
+  );
+  const name = anatomyChild(names, expected);
+  return name === null ? null : joinPath(directory, name);
+};
+
 const infoPlistPath = (
   bundle: string,
   layout: Bundle["layout"],
@@ -319,7 +335,7 @@ const infoPlistPath = (
   if (directory === undefined) return null;
   const parent =
     layout === "versioned-framework"
-      ? namedChild(tree, directory, "Resources")
+      ? namedDirectory(tree, directory, "Resources")
       : directory;
   if (parent === null) return null;
   const info = namedChild(tree, parent, "Info.plist");
@@ -335,7 +351,7 @@ const executableCandidates = (
     .flatMap((directory) => {
       const executableDirectory =
         layout === "macos-deep"
-          ? namedChild(tree, directory, "MacOS")
+          ? namedDirectory(tree, directory, "MacOS")
           : directory;
       return executableDirectory === null
         ? []
@@ -352,7 +368,7 @@ const signingPaths = (
 ): string[] =>
   contentDirectories(bundle, layout, tree)
     .flatMap((directory) => {
-      const signature = namedChild(tree, directory, "_CodeSignature");
+      const signature = namedDirectory(tree, directory, "_CodeSignature");
       return [
         signature === null
           ? null
