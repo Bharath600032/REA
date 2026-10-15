@@ -20,6 +20,13 @@ import {
 } from "./javascriptAstValues.js";
 import type { JavaScriptOpenReceiverFact } from "./javascriptSemanticAnalysis.js";
 import {
+  resolveSemanticBindingState,
+  semanticStableInitializer,
+  type JavaScriptSemanticAnalysisState,
+} from "./javascriptSemanticState.js";
+import { isUnmodifiedGlobalReference } from "./javascriptSemanticAmbientWrites.js";
+import { electronMemberPath } from "./javascriptElectronMemberWrites.js";
+import {
   compareUnicodeCodePoints,
   compositeKey,
 } from "../unicodeCodePointOrder.js";
@@ -590,6 +597,50 @@ export interface JavaScriptEndpointArgument {
   readonly value: string;
 }
 
+/**
+ * Resolve only stable constructor captures and exact runtime ws imports.
+ * The definitions phase uses this to select ambient indexing; endpoint reads
+ * repeat the same proof after that index has collected all visible writes.
+ */
+export const isWebSocketEndpointCandidate = (
+  callee: t.Node,
+  state: JavaScriptSemanticAnalysisState,
+): boolean => {
+  const visited = new Set<string>();
+  let current = callee;
+  for (;;) {
+    current = unwrapJavaScriptExpression(current).node;
+    if (isUnmodifiedGlobalReference(current, state, "WebSocket")) return true;
+    const { root, members } = electronMemberPath(current);
+    if (!t.isIdentifier(root)) return false;
+    const binding = resolveSemanticBindingState(state, root, root.name);
+    if (binding === undefined || visited.has(binding.bindingId)) return false;
+    const [origin] = binding.directOrigins;
+    if (binding.runtimeImport) {
+      const path = [...(origin?.importedPath ?? []), ...members];
+      return (
+        binding.definitions.length === 1 &&
+        binding.directOrigins.length === 1 &&
+        origin?.specifier === "ws" &&
+        path.length === 1 &&
+        (path[0] === "default" || path[0] === "WebSocket")
+      );
+    }
+    // A captured constructor retains the value; an arbitrary object's member
+    // would need a separate mutation/projection proof and stays unresolved.
+    if (members.length !== 0) return false;
+    const initializer = semanticStableInitializer(binding, state);
+    if (
+      initializer === undefined ||
+      initializer.projection.length !== 0 ||
+      (initializer.node.end ?? Infinity) >= (root.start ?? -1)
+    )
+      return false;
+    visited.add(binding.bindingId);
+    current = initializer.node;
+  }
+};
+
 /** Classify one literal without treating a generic method name as network identity. */
 export const endpointArgument = (
   name: string,
@@ -600,6 +651,7 @@ export const endpointArgument = (
     | t.ArgumentPlaceholder
   )[],
   callee: t.Node,
+  bindings: JavaScriptSemanticAnalysisState,
   receiverFact?: JavaScriptOpenReceiverFact,
 ): JavaScriptEndpointArgument | undefined => {
   const literal = (
@@ -607,10 +659,11 @@ export const endpointArgument = (
   ): JavaScriptEndpointArgument | undefined =>
     value === undefined ? undefined : { kind: "endpoint", value };
   if (receiverFact === "window") return undefined;
+  if (isWebSocketEndpointCandidate(callee, bindings))
+    return literal(stringValue(args[0]));
   if (
     name === "fetch" ||
     name.endsWith(".fetch") ||
-    name === "WebSocket" ||
     name === "EventSource" ||
     name.endsWith(".EventSource")
   )
