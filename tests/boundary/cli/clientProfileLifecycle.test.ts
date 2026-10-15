@@ -138,6 +138,9 @@ cliTest(
 for (const group of groups) {
   cliTest(
     `${group.name} lifecycle follows the selected roots`,
+    // The six-client scenario runs 16 CLI processes sequentially. Allow aggregate
+    // startup time on busy runners; each invocation still has a 20-second limit.
+    group.cases.length > 1 ? { timeout: 60_000 } : {},
     async ({ cli }) => {
       const home = await createTestTempDirectory("rea-client-profile-");
       const environment: NodeJS.ProcessEnv = { HOME: home, USERPROFILE: home };
