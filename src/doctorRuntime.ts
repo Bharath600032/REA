@@ -15,6 +15,7 @@ import { ok } from "./domain/result.js";
 /** Compose provider diagnostics at the outer CLI adapter boundary. */
 export const createSystemDoctorHost = (
   environment: Readonly<NodeJS.ProcessEnv> = process.env,
+  workspaceDirectory?: string,
 ): DoctorHost => {
   const selectedJebEndpoint = environment.REA_JEB_MCP_URL;
   const selectedJebRegistrationEnvironment: Readonly<Record<string, string>> =
@@ -25,6 +26,7 @@ export const createSystemDoctorHost = (
       : {};
   return systemDoctorHost({
     environment,
+    ...(workspaceDirectory === undefined ? {} : { workspaceDirectory }),
     providerRegistrationEnvironment: () => selectedJebRegistrationEnvironment,
     resolveProviderRequestBudget: (
       analysisProvider,
