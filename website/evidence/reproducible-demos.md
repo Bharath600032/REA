@@ -22,7 +22,7 @@ agent evidence. The verifier runs are not recordings or resource benchmarks.
   `3c11d59338104ba96399bfd05bebf4359ac6a293f49d2b095566456842f4396e`.
 - A Linux checkout with LF line endings gives
   `0ee325d4eaf7f94b62b2962044995fe1efe9f1d31411eb035118b19b1f56f7bb` for the
-  same six files; the graph remains 29 nodes and 42 edges. These hashes identify
+  same six files; the recorded graph remains 29 nodes and 42 edges. These hashes identify
   exact bytes, so the line-ending difference is expected. Evidence IDs also
   include checkout paths and may differ between runs.
 - The analyzer parsed all six source files. Its application graph had 29 nodes
@@ -34,6 +34,10 @@ agent evidence. The verifier runs are not recordings or resource benchmarks.
   semantic query for `notes:export` returned no seed match; that string is
   represented in the application graph's IPC channel evidence instead. Neither
   result establishes a runtime invocation.
+- These graph counts are pinned to the recorded REA source revision
+  `0ecf3f2438ec` and the Evidence IDs above. Later REA revisions can add nodes,
+  edges or semantic relations for the same fixture; those counts must not be
+  substituted into this record without new Evidence IDs.
 - A real agent transcript was not produced. The isolated Codex evaluation
   failed because this host did not have a usable login for its disposable
   account. Its temporary target, auth file and report were removed. Agent
