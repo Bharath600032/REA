@@ -151,6 +151,7 @@ const appendFile = (
     limitations: [...(parsed?.limitations ?? [])],
   });
   if (parsed === undefined) return;
+  output.limitations.push(...parsed.limitations);
   for (const relationship of parsed.relationships) {
     if (relationship.resolution !== "internal") {
       output.relationships.push(relationship);
