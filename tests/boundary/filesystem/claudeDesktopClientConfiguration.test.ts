@@ -86,6 +86,10 @@ const readJson = async (path: string): Promise<Record<string, unknown>> =>
   JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
 
 const reaEntry = { command: command[0], args: command.slice(1) };
+const compactReaEntry = {
+  ...reaEntry,
+  env: { REA_MCP_INPUT_SCHEMA_PROFILE: "compact" },
+};
 
 describe("Windows Claude Desktop configuration location", () => {
   it("uses AppData when no MSIX package storage exists", async () => {
@@ -162,7 +166,7 @@ describe("Windows Claude Desktop configuration location", () => {
       configureClientConfiguration(client, {}, command),
     ).resolves.toEqual({ status: "configured" });
     expect(await readJson(privateConfig)).toEqual({
-      mcpServers: { rea: reaEntry },
+      mcpServers: { rea: compactReaEntry },
     });
   });
 
@@ -239,7 +243,7 @@ describe("MSIX Claude Desktop registration lifecycle", () => {
       ...privateOriginal,
       mcpServers: {
         ...privateOriginal.mcpServers,
-        rea: reaEntry,
+        rea: compactReaEntry,
       },
     });
     expect(await readJson(`${privateConfig}.rea.backup`)).toEqual(
@@ -311,12 +315,67 @@ describe("MSIX Claude Desktop registration lifecycle", () => {
 
     expect(await readJson(appDataConfig)).toEqual({
       preferences: { theme: "light" },
-      mcpServers: { rea: reaEntry },
+      mcpServers: { rea: compactReaEntry },
     });
     await expect(access(privateConfig)).rejects.toMatchObject({
       code: "ENOENT",
     });
   });
+});
+
+describe("Claude Desktop input schema compatibility", () => {
+  it.each([undefined, "full", "compact"] as const)(
+    "configures Claude Desktop with schema profile %s",
+    async (profile) => {
+      const { home, env, appDataConfig } = await windowsProfile();
+      const existingEnvironment = {
+        CALLER_SETTING: "preserve exactly",
+        ...(profile === undefined
+          ? {}
+          : { REA_MCP_INPUT_SCHEMA_PROFILE: profile }),
+      };
+      const original = {
+        mcpServers: {
+          rea: {
+            ...(profile === undefined
+              ? reaEntry
+              : { command: "old-rea", args: ["mcp"] }),
+            env: existingEnvironment,
+          },
+          other: { command: "other", args: ["serve"] },
+        },
+      };
+      await writeJson(appDataConfig, original);
+      const client = claudeDesktop(home, env);
+
+      await expect(
+        inspectClientConfiguration(client, {}, command),
+      ).resolves.toMatchObject({ status: "update" });
+      await expect(
+        configureClientConfiguration(client, {}, command),
+      ).resolves.toMatchObject({ status: "configured" });
+      expect(await readJson(appDataConfig)).toEqual({
+        mcpServers: {
+          ...original.mcpServers,
+          rea: {
+            ...reaEntry,
+            env: {
+              ...existingEnvironment,
+              REA_MCP_INPUT_SCHEMA_PROFILE: "compact",
+            },
+          },
+        },
+      });
+      expect(await readJson(`${appDataConfig}.rea.backup`)).toEqual(original);
+      await expect(
+        inspectClientConfiguration(client, {}, command),
+      ).resolves.toEqual({ status: "already_current" });
+      await expect(
+        configureClientConfiguration(client, {}, command),
+      ).resolves.toEqual({ status: "unchanged" });
+      expect(await readJson(`${appDataConfig}.rea.backup`)).toEqual(original);
+    },
+  );
 });
 
 describe("MSIX Claude Desktop uninstall", () => {

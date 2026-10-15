@@ -725,13 +725,22 @@ const clientConfigurationDesired = (
   );
   if (!environment.ok) throw environment.error;
   const registrationEnvironment =
-    client.name === "kimi" &&
-    environment.value.REA_MCP_INPUT_SCHEMA_PROFILE === undefined
+    client.name === "claude_desktop"
       ? {
           ...environment.value,
+          // Claude Desktop can misread schema-local references as string
+          // inputs. Compact schemas inline them and expose structured
+          // parameter types. Keep this client default last so older profile
+          // overrides do not disable it.
           REA_MCP_INPUT_SCHEMA_PROFILE: "compact",
         }
-      : environment.value;
+      : client.name === "kimi" &&
+          environment.value.REA_MCP_INPUT_SCHEMA_PROFILE === undefined
+        ? {
+            ...environment.value,
+            REA_MCP_INPUT_SCHEMA_PROFILE: "compact",
+          }
+        : environment.value;
   const registration = clientRegistrationEntry(
     format,
     launcher,
