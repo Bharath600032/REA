@@ -376,6 +376,38 @@ describe("Ghidra Mach-O slice support", () => {
 });
 
 describe("Ghidra platform support", () => {
+  it("versions the Windows ARM PE import without changing other profile lanes", async () => {
+    for (const platform of ["win32", "linux"] as const) {
+      const ghidra = provider(installationHost(platform));
+      for (const architecture of ["x86", "x86_64", "arm", "arm64"] as const) {
+        const resolved = await ghidra.resolveAnalysisProfile(
+          peTarget(architecture),
+        );
+        if (!resolved.ok) throw resolved.error;
+        if (resolved.value.profile === null)
+          throw new Error("Expected a PE analysis profile");
+        const parameters = resolved.value.profile.parameters;
+        if (
+          platform === "win32" &&
+          (architecture === "arm" || architecture === "arm64")
+        )
+          expect(parameters).toHaveProperty(
+            "windows_arm_pe_import",
+            "loader-selected-language-v1",
+          );
+        else expect(parameters).not.toHaveProperty("windows_arm_pe_import");
+        if (
+          platform === "win32" &&
+          (architecture === "arm" || architecture === "arm64")
+        )
+          expect(parameters.windows_arm_pe_machine).toBe(
+            peTarget(architecture).peMachine,
+          );
+        else expect(parameters).not.toHaveProperty("windows_arm_pe_machine");
+      }
+    }
+  });
+
   it("commits the PE role and managed classification to profile identity", async () => {
     const ghidra = provider(installationHost("win32"));
     const application = peTarget("x86_64");
@@ -520,12 +552,13 @@ describe("Ghidra Windows platform support", () => {
       status: "unsupported",
       code: "target_format_unsupported",
     });
+    // ARM64 PE is admitted on Windows P0 (bounded; see docs/windows-ghidra-p0.md).
     expect(
-      ghidra.inspectTargetSupport(executableTarget("pe", "arm64")),
-    ).toMatchObject({
-      status: "unsupported",
-      code: "architecture_unsupported",
-    });
+      ghidra.inspectTargetSupport(executableTarget("pe", "arm64")).status,
+    ).toBe("supported");
+    expect(
+      ghidra.inspectTargetSupport(executableTarget("pe", "arm")).status,
+    ).toBe("supported");
   });
 });
 
@@ -625,12 +658,6 @@ describe("Windows Ghidra native failure diagnostics", () => {
         status: "unsupported",
         code: "target_format_unsupported",
       });
-      expect(
-        ghidra.inspectTargetSupport(executableTarget("pe", "arm64")),
-      ).toMatchObject({
-        status: "unsupported",
-        code: "architecture_unsupported",
-      });
       const client = ghidra.createClient(nativeApplication);
       const health = await client.execute("health", {});
       if (health.ok)
@@ -649,18 +676,34 @@ describe("Windows Ghidra native failure diagnostics", () => {
 });
 
 describe("Ghidra Windows PE fixture admission", () => {
+  it.each(["arm", "arm64"] as const)(
+    "does not infer a COFF machine from an unobserved %s family",
+    (architecture) => {
+      const { peMachine, ...unobserved } = peTarget(architecture);
+      expect(peMachine).toBeDefined();
+      expect(
+        provider(installationHost("win32")).inspectTargetSupport(unobserved),
+      ).toMatchObject({
+        status: "unsupported",
+        code: "architecture_unsupported",
+        diagnostics: { pe_machine: null },
+      });
+    },
+  );
+
   it("admits generated PE32 and PE32+ DLLs and applications while preserving native-only Windows admission", async () => {
     const root = fileURLToPath(new URL("../../", import.meta.url));
     await promisify(execFile)(process.execPath, [
       join(root, "scripts/create-ghidra-windows-fixture.mjs"),
     ]);
     const ghidra = provider(installationHost("win32"));
-    for (const architecture of ["x86", "x86_64"] as const) {
+    for (const architecture of ["x86", "x86_64", "arm", "arm64"] as const) {
       for (const dll of [false, true]) {
+        const suffix = architecture === "x86_64" ? "" : `-${architecture}`;
         const path = join(
           root,
           "build/fixtures",
-          `rea-ghidra-windows${architecture === "x86" ? "-x86" : ""}.${dll ? "dll" : "exe"}`,
+          `rea-ghidra-windows${suffix}.${dll ? "dll" : "exe"}`,
         );
         const bytes = await readFile(path);
         const metadata = parseExecutableHeader(bytes, "x64");
@@ -684,13 +727,34 @@ describe("Ghidra Windows PE fixture admission", () => {
           ...metadata.value,
         };
         expect(ghidra.inspectTargetSupport(target).status).toBe("supported");
+        if (architecture === "arm") {
+          for (const peMachine of [0x01c0, 0x01c2]) {
+            const legacy = Buffer.from(bytes);
+            legacy.writeUInt16LE(peMachine, legacy.readUInt32LE(0x3c) + 4);
+            const parsed = parseExecutableHeader(legacy, "x64");
+            if (!parsed.ok) throw new Error(parsed.error);
+            if (parsed.value.format !== "pe")
+              throw new Error("Expected a PE fixture");
+            expect(parsed.value).toMatchObject({ architecture, peMachine });
+            expect(
+              ghidra.inspectTargetSupport({
+                ...target,
+                ...parsed.value,
+                sha256: createHash("sha256").update(legacy).digest("hex"),
+              }),
+            ).toMatchObject({
+              status: "unsupported",
+              code: "architecture_unsupported",
+              diagnostics: { pe_machine: peMachine },
+            });
+          }
+        }
         for (const [candidate, code] of [
           [
             { ...target, executableRole: "non-executable" },
             "target_role_unsupported",
           ],
           [{ ...target, managed: true }, "managed_target_unsupported"],
-          [{ ...target, architecture: "arm64" }, "architecture_unsupported"],
         ] as const) {
           expect(ghidra.inspectTargetSupport(candidate)).toMatchObject({
             status: "unsupported",
@@ -1947,6 +2011,9 @@ const peTarget = (
   sha256: "a".repeat(64),
   kind: "executable",
   format: "pe",
+  peMachine: { x86: 0x014c, x86_64: 0x8664, arm: 0x01c4, arm64: 0xaa64 }[
+    architecture
+  ],
   architecture,
   availableArchitectures: [architecture],
   executableRole: "application",
