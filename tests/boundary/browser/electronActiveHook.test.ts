@@ -14,6 +14,7 @@ const temporary: string[] = [];
 const electronModuleSource = `const { EventEmitter } = require("node:events");
 const app = new EventEmitter();
 app.isReady = () => true;
+app.moveToApplicationsFolder = () => true;
 app.relaunch = () => undefined;
 app.setAsDefaultProtocolClient = () => true;
 app.setLoginItemSettings = () => undefined;
@@ -104,6 +105,7 @@ const defaultPopupDecision = window.webContents.windowOpenHandler({ url: "https:
 window.webContents.setWindowOpenHandler(() => ({ action: "allow" }));
 const popupDecision = window.webContents.windowOpenHandler({ url: "https://popup.invalid" });
 electron.shell.openExternal("https://example.invalid").catch(() => undefined);
+const moveResult = electron.app.moveToApplicationsFolder({ conflictHandler: () => true });
 electron.app.relaunch();
 electron.contextBridge.exposeInMainWorld("api", { value: true });
 window.webContents.loadURL("https://example.invalid").catch(() => undefined);
@@ -118,7 +120,7 @@ const firstIpc = firstSnapshot.events.find((event) => event.kind === "main-handl
 if (firstIpc) { firstIpc.channel = "mutated"; firstIpc.argument_shapes.push("mutated"); }
 firstSnapshot.events.length = 0;
 const snapshot = globalThis.__reaElectronActiveSnapshot();
-process.stdout.write(JSON.stringify({ snapshot, default_popup_decision: defaultPopupDecision, popup_decision: popupDecision }) + "\\n");
+process.stdout.write(JSON.stringify({ snapshot, default_popup_decision: defaultPopupDecision, popup_decision: popupDecision, move_result: moveResult }) + "\\n");
 })();
 `;
 
@@ -143,6 +145,7 @@ it("retains active hook evidence within its event-retention budget", async () =>
   ) as {
     readonly default_popup_decision: { readonly action: string };
     readonly popup_decision: { readonly action: string };
+    readonly move_result: boolean;
     readonly snapshot: {
       readonly hook_error: boolean;
       readonly events: readonly Record<string, unknown>[];
@@ -186,11 +189,23 @@ it("retains active hook evidence within its event-retention budget", async () =>
       expect.objectContaining({ kind: "window-lifecycle", event: "created" }),
       expect.objectContaining({ kind: "preload", event: "configured" }),
       expect.objectContaining({ kind: "shell-attempt", phase: "blocked" }),
-      expect.objectContaining({ kind: "updater", phase: "blocked" }),
+      expect.objectContaining({
+        kind: "updater",
+        event: "moveToApplicationsFolder",
+        phase: "blocked",
+        argument_shapes: ["object"],
+        error: true,
+      }),
+      expect.objectContaining({
+        kind: "updater",
+        event: "relaunch",
+        phase: "blocked",
+      }),
       expect.objectContaining({ kind: "native-addon" }),
       expect.objectContaining({ kind: "popup-attempt", phase: "blocked" }),
     ]),
   );
+  expect(result.move_result).toBe(false);
   expect(result.default_popup_decision).toEqual({ action: "deny" });
   expect(result.popup_decision).toEqual({ action: "deny" });
   expect(

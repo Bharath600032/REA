@@ -214,6 +214,7 @@ const createElectronActiveBoundaryPatches = ({
   const patchApplicationEffects = (app) => {
     if (app === null || app === undefined) return;
     for (const method of [
+      "moveToApplicationsFolder",
       "relaunch",
       "setAsDefaultProtocolClient",
       "setLoginItemSettings",
@@ -222,12 +223,17 @@ const createElectronActiveBoundaryPatches = ({
       if (typeof original !== "function") continue;
       app[method] = function blockedApplicationEffect(...args) {
         recordRuntime(
-          method === "relaunch" ? "updater" : "protocol",
+          method === "relaunch" || method === "moveToApplicationsFolder"
+            ? "updater"
+            : "protocol",
           method,
           "blocked",
           { argument_shape_values: args, error: true },
         );
-        return method === "setAsDefaultProtocolClient" ? false : undefined;
+        return method === "setAsDefaultProtocolClient" ||
+          method === "moveToApplicationsFolder"
+          ? false
+          : undefined;
       };
     }
   };
