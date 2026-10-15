@@ -23,6 +23,36 @@ const permissionChecksUnavailable =
 
 describe("reference import native entry failure details", () => {
   it.skipIf(permissionChecksUnavailable)(
+    "preserves a root directory read failure",
+    async () => {
+      const root = await createTestTempDirectory("rea-reference-root-read-");
+      await writeFile(join(root, "main.txt"), "root evidence\n");
+      await chmod(root, 0o100);
+      try {
+        const read = await readReferenceSource(root);
+        expect(read).toMatchObject({
+          ok: false,
+          error: {
+            code: "io",
+            message: expect.stringContaining("EACCES"),
+          },
+        });
+
+        const imported = await importTree(root);
+        expect(imported).toMatchObject({
+          ok: false,
+          error: {
+            code: "io",
+            message: expect.stringContaining("EACCES"),
+          },
+        });
+      } finally {
+        await chmod(root, 0o700);
+      }
+    },
+  );
+
+  it.skipIf(permissionChecksUnavailable)(
     "classifies a root behind a blocked parent as an I/O failure",
     async () => {
       const directory = await createTestTempDirectory(
