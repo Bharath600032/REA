@@ -586,6 +586,9 @@ export const createGhidraProviderClient = (input: {
       bridgeScriptPath: fileURLToPath(
         new URL("../../bridge/ghidra/ReaGhidraBridge.java", import.meta.url),
       ),
+      ...(config.ghidraExistingProject === undefined
+        ? {}
+        : { existingProject: config.ghidraExistingProject }),
       ...(pspExtension?.success === true
         ? { pspExtension: pspExtension.data }
         : {}),
@@ -601,7 +604,8 @@ export const createGhidraProviderClient = (input: {
               baseAddr: target.entryPoint,
             },
           }),
-      ...(importLanguage === undefined
+      ...(importLanguage === undefined ||
+      config.ghidraExistingProject !== undefined
         ? {}
         : { languageOverride: importLanguage }),
       ...(config.ghidraDisabledAnalyzers === undefined
