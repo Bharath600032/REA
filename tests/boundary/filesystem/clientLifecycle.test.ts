@@ -73,6 +73,7 @@ describe("client configuration filesystem lifecycle", () => {
       "pi",
       "hermes",
       "qoder",
+      "openclaw",
       "droid",
       "zcode",
       "dsh",
