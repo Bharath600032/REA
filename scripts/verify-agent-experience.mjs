@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   chmod,
+  cp,
   copyFile,
   mkdir,
   mkdtemp,
@@ -159,13 +160,22 @@ try {
       id: "notes-export",
       expectedFirstTool: "analyze_javascript_application",
       requiresEvidence: true,
-      requiredAnswerTermGroups: [],
+      requiredAnswerTermGroups: [
+        ["notes:export"],
+        ["renderer.js"],
+        ["preload.js"],
+        ["main.js"],
+        ["csv.js"],
+        ["notes.csv"],
+        ["id,title"],
+        ["runtime", "not executed", "not observed"],
+      ],
       requiredToolSubsequence: [
         "analyze_javascript_application",
         "trace_application_feature",
         "trace_javascript_semantics",
       ],
-      prompt: `Use REA on the shipped Electron application at ${targets.notesElectron} to investigate its notes export API, preload exposure and main handler. Do not read target files directly or launch Electron. Use the returned application Evidence to trace the exact notes:export IPC channel in both directions, then query semantic relations for the property invoke with forward influence, excluding ambiguous dynamic edges and without an expected sink. Report the selected static facts, source locations and coverage limits using the closed claim contract.`,
+      prompt: `Use REA on the shipped Electron application at ${targets.notesElectron} to explain what the Export notes button does. Do not read target files directly or launch Electron. Analyze the app, use that returned Evidence to trace the exact notes:export IPC channel in both directions, then query semantic relations for the property invoke with forward influence. Explain the renderer, preload, main handler, CSV columns and row construction with source locations. State that the semantic query is ambiguous with one relevant unknown, and that static analysis does not observe a click or resolve the actual Downloads directory returned by Electron at runtime.`,
     },
     {
       id: "javascript-module-view",
@@ -400,9 +410,15 @@ try {
 
 async function createTargets(root, includeManaged) {
   const fixtures = await createAgentEvaluationFixtures(root, repositoryRoot);
+  const notesElectron = join(root, "notes-electron");
   const largeJavascript = join(root, "large-app");
   await mkdir(join(largeJavascript, "lib"), { recursive: true });
   await Promise.all([
+    cp(
+      join(repositoryRoot, "website/public/examples/notes-electron"),
+      notesElectron,
+      { recursive: true },
+    ),
     writeFile(
       join(largeJavascript, "package.json"),
       '{"name":"large-app","main":"main.js"}\n',
@@ -451,6 +467,7 @@ async function createTargets(root, includeManaged) {
   return {
     native: "/bin/true",
     ...fixtures,
+    notesElectron,
     largeJavascript,
     managed: join(managedOutput, "AgentEval.dll"),
     ...(includeManaged
