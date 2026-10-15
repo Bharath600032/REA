@@ -51,6 +51,29 @@ export function parseMipsReadelf(
     objectType === "rel" ? /^REL\b/u : /^EXEC\b/u,
   );
   assert.match(field(/^\s*Machine:\s*(.+)$/gmu, "machine"), /^MIPS\b/u);
+  const sectionCount = Number(
+    field(/^\s*Number of section headers:\s*(\d+)\s*$/gmu, "section count"),
+  );
+  assert.ok(sectionCount > 0, "Fixture must have a section header table");
+  const sections = [...text.matchAll(/^[ \t]*\[[ \t]*(\d+)\][ \t]+(.+)$/gmu)];
+  assert.equal(
+    sections.length,
+    sectionCount,
+    "Incomplete readelf section table",
+  );
+  for (const [index, section] of sections.entries()) {
+    assert.equal(Number(section[1]), index, "Ambiguous readelf section index");
+    const columns =
+      /^(?:\S+[ \t]+)?(\S+)[ \t]+[\da-f]{8}[ \t]+[\da-f]+[ \t]+[\da-f]+[ \t]+[\da-f]{2}[ \t]+(?:[A-Za-z]+[ \t]+)?\d+[ \t]+\d+[ \t]+\d+[ \t]*$/u.exec(
+        section[2],
+      );
+    assert.ok(columns !== null, "Malformed readelf section header");
+    assert.notEqual(
+      columns[1],
+      "GNU_ATTRIBUTES",
+      "Fixture unexpectedly declares GNU attributes",
+    );
+  }
   const flags = Number(field(/^\s*Flags:\s*(0x[\da-f]+),.*$/gmu, "flags"));
   assert.equal(flags, 0x70001001, "Fixture ELF flags differ from build intent");
   assert.equal(field(/^ISA:\s*(.+)$/gmu, "ISA"), "MIPS32r2");
@@ -123,6 +146,7 @@ export function parseMipsReadelf(
       type: objectType === "rel" ? 1 : 2,
       flags,
       abiFlags,
+      gnuAttributes: null,
     },
     symbols,
   };
@@ -144,7 +168,7 @@ export async function inspectMipsReadelf(path, byteOrder, floatAbi = "hard") {
   );
   const result = await execute(
     command,
-    ["-h", "-A", "-s", "-W", path],
+    ["-h", "-A", "-S", "-s", "-W", path],
     options,
   );
   assert.equal(

@@ -2,7 +2,7 @@ import type { MipsElfMetadata } from "../../../src/domain/binaryTargetTypes.js";
 
 export type MipsFloatAbi = "hard" | "soft";
 export interface MipsReadelfFacts {
-  mips: MipsElfMetadata;
+  mips: MipsElfMetadata & { readonly gnuAttributes: null };
   symbols: Record<string, string>;
 }
 export function parseMipsReadelf(
