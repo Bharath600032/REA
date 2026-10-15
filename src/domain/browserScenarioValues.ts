@@ -160,12 +160,15 @@ const locatorSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
+export const MAX_BROWSER_SCENARIO_TIMEOUT_MS = 2_147_483_647;
+
 const stepBase = {
   step_id: scenarioIdentifierSchema,
   timeout_ms: z
     .number()
     .int()
     .min(1)
+    .max(MAX_BROWSER_SCENARIO_TIMEOUT_MS)
     .optional()
     .describe(
       "Optional action deadline in milliseconds; omitted means wait until completion or request cancellation.",
@@ -222,6 +225,7 @@ export const browserScenarioActionSchema = z.discriminatedUnion("action", [
       .number()
       .int()
       .min(1)
+      .max(MAX_BROWSER_SCENARIO_TIMEOUT_MS)
       .describe(
         "Wait this many milliseconds; the wait ends early on cancellation.",
       ),
